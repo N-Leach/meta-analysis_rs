@@ -31,7 +31,7 @@ full_dataset$model_group <- factor(full_dataset$model_group,
 
 Like in my study, @khatami2016, found that overall accuracy is the most commonly reported metric in remote sensing classification studies, because of this they also used overall accuracy as the measure of classification performance in their meta-analysis.
 
-Because of the way @khatami2016 recorded their data, I will only use the model and publication year as study features. An important feature that I included in my study that was not in @khatami2016 is the proportion of the majority class. @khatami2016 discuss the issue of class imbalance but they were unable to correct for this because of the way that they did their analysis.
+Because of the way @khatami2016 recorded their data, I only use the model and publication year as study features. An important feature that I included in my study that was not in @khatami2016 is the proportion of the majority class. @khatami2016 discuss the issue of class imbalance but they were unable to correct for this because of the way that they did their analysis.
 :::
 
 ::: {#fig-plots}
@@ -89,7 +89,7 @@ ies.da <- escalc(xi = event , ni = sample_size ,
 
 ### Meta-analysis Results
 
-The table presents the results of a meta-analysis conducted on two datasets (the dataset used in my thesis: "Nina, 2024" and @khatami2016), as well as the combined data, with and without the inclusion of study features. The results show significant heterogeneity across all datasets, indicated by the very low $p_Q$ values (\< 0.0001), meaning that the overall accuracy varies significantly from outcome to outcome. Variance at both Level 2 and Level 3 ($\sigma^2_{\text{level2}}$ and $\sigma^2_{\text{level3}}$) is present in both datasets. Including study features (model group and publication year) does not reduce this variance in my dataset. However, in the @khatami2016 data, 55.5% of the variance at Level 2 is explained by the inclusion of these factors, though Level 3 variance remains poorly explained, with a negative $R^2_{\text{level3}}$ value (-5.6%).
+The table presents the results of a meta-analysis conducted on two datasets (the dataset used in my thesis: "Nina, 2024" and @khatami2016), as well as the combined data. The results show significant heterogeneity across all datasets, indicated by the very low $p_Q$ values (\< 0.0001), meaning that the overall accuracy varies significantly from outcome to outcome. Variance at both Level 2 and Level 3 ($\sigma^2_{\text{level2}}$ and $\sigma^2_{\text{level3}}$) is present in both datasets. Including study features (model group and publication year) does not reduce this variance in my dataset. However, in the @khatami2016 data, 55.5% of the variance at Level 2 is explained by the inclusion of these factors, though Level 3 variance remains poorly explained, with a negative $R^2_{\text{level3}}$ value (-5.6%).
 
 ```{r extractparameter}
 extract_parameters <- function(data) {

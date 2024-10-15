@@ -26,7 +26,7 @@ In a world facing climate change, biodiversity loss, and urbanization, global ef
 
 ![](images/UN_SDG_Icons.png){fig-align="center"}
 
-This post walks through a meta-analysis (a study that combines results from multiple studies) I conducted for my masters thesis, which focused on understanding how well machine learning models perform when applied to remote sensing data for the SDGs and which study features affect the performance. The next page also gives you the opportunity to add data and redo my analysis **(see here how to do that)**.
+This post walks through a meta-analysis (a study that combines results from multiple studies) I conducted for my masters thesis, which focused on understanding how well machine learning models perform when applied to remote sensing data for the SDGs and which study features affect the performance. The Active Analysis Dashboard also gives you the opportunity to add data [(see contribute data page)](codebook.qmd). The analysis automatically updated using this data. 
 
 ### Key Findings from the Study
 
