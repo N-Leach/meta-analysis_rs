@@ -1,0 +1,64 @@
+---
+title: "Instructions"
+---
+
+## How to add to the dataset
+
+Sadly the current set-up is a bit convoluted and geared towards GitHub users. For a introduction on using Git and GitHub through R see: [Happy Git and GitHub for the useR](https://happygitwithr.com/).
+
+If you have an GitHub account:
+
+1.  Fork the repository
+
+    Go to the [GitHub repository](https://github.com/N-Leach/meta-analysis_rs) and click the "Fork" button. This creates a copy of the repository in your GitHub account.
+
+2.  Clone Your Fork
+
+    In your forked repository, click the green "Code" button, copy the URL, and clone it to your local machine using Git:
+
+    ``` bash
+    git clone https://github.com/your-username/your-forked-repo.git
+    ```
+
+3.  Update the CSV File
+
+    -   In your cloned repository, navigate to the CSV file (e.g., data/Contrib_metaData.csv).
+
+    -   Open it and add your data in the same format as the existing rows.
+
+    -   Save the file.
+
+4.  Commit and Push Your Changes
+
+    ``` bash
+    git add data/quotes.csv
+    git commit -m "Added new data to the CSV"
+    git push origin main
+    ```
+
+5.  Submit a Pull Request
+
+    -   Go back to your fork on GitHub and click "Contribute" \> "Open Pull Request."
+
+    -   Submit your pull request, and I will review and merge your changes!
+
+## Codebook
+
+All variables that are in the dataset with the categories and explaintions
+
+```{=html}
+<details>
+<summary>Click to expand</summary>
+```
+```{r}
+#| code-fold: true
+source("utilities/packages.R")
+
+options(knitr.kable.NA = '')
+
+read_excel("utilities/codebook.xlsx")|>
+  kable() |>
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), font_size = 14)
+```
+
+</details>

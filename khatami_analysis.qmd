@@ -1,0 +1,243 @@
+---
+title: "Analyzing Prior Research"
+---
+
+```{r}
+source("utilities/functions_labels.R")
+source("utilities/packages.R")
+# data 
+full_dataset <- read.csv("data/full_dataset.csv")
+full_dataset <- full_dataset |> group_by(AuthorYear) |> mutate(esid = row_number())
+
+full_dataset$model_group <- factor(full_dataset$model_group, 
+                                   levels = c("DA", "DT", "FZ", "GA", "IB", "IS", 
+                                              "KNN", "MD", "ML", "NN", "PP", "RF", 
+                                              "SAM", "SS", "SVM"), 
+                                   labels = c("Discriminant Analysis", "Decision Trees",
+                                              "Fuzzy", "Genetic Algorithm", 
+                                              "Index-Based", "Immune System", 
+                                              "K-Nearest Neighbor", "Minimum Distance", 
+                                              "Maximum Likelihood", "Neural Networks", 
+                                              "Parallelepiped", "Random Forest", 
+                                              "Spectral Angle Mapper", "Subspace", 
+                                              "Support Vector Machines"))
+
+```
+
+::: {style="text-align: justify"}
+@khatami2016 conducted a meta-analysis of studies on supervised pixel-based land-cover classification methods in remote sensing. Their focus was on examining the relative performance of different classification algorithms (e.g., Support Vector Machines (SVM), Decision Trees (DT), Neural Networks (NN)) and input data enhancements (e.g., texture, multi-angle imagery) used in these classification processes. Unlike, my study, which weighed studies based on their sample sizes, Khatami et al. used each paper as the unit of analysis. They did not incorporate the sample size of the original studies into their analysis. Instead, they used pairwise comparisons (Wilcoxon signed-rank test) based on the outcomes reported in the studies.
+
+### Descriptive Statistics
+
+Like in my study, @khatami2016, found that overall accuracy is the most commonly reported metric in remote sensing classification studies, because of this they also used overall accuracy as the measure of classification performance in their meta-analysis.
+
+Because of the way @khatami2016 recorded their data, I will only use the model and publication year as study features. An important feature that I included in my study that was not in @khatami2016 is the proportion of the majority class. @khatami2016 discuss the issue of class imbalance but they were unable to correct for this because of the way that they did their analysis.
+:::
+
+::: {#fig-plots}
+```{r year}
+#| fig-height: 3
+#| fig-width: 8
+
+ggplot(full_dataset, aes(Publication.Year, fill = dataset)) +
+  geom_histogram(binwidth = 1, colour = "white")+
+  scale_x_continuous(breaks=seq(1998,2023,2))+
+  labs(x = "Publication Year", 
+       y = "Count", 
+       fill = NULL)+
+  theme(legend.position="bottom")
+  
+```
+
+```{r boxplot}
+#| fig-height: 7
+
+ggplot(full_dataset, aes(y = OA_reported ,x = factor(model_group))) +
+  geom_boxplot(outliers = FALSE) +
+  geom_jitter(aes(fill = dataset),shape = 21, alpha = 0.7, colour = "transparent") +
+  labs(x = "Model Group", 
+       y = "Overall accuary")+
+  coord_flip()+
+  theme(legend.position="none")
+```
+:::
+
+::: {style="text-align: justify"}
+Because @khatami2016 didn't use sample size, as an example here I set all the unknown sample sizes to 100.
+
+```{r echo=TRUE}
+full_dataset$sample_size <-
+  ifelse(is.na(full_dataset$total), 100, full_dataset$total)
+```
+
+Since overall accuracy is the number of correctly classified instances over the total number of instances. The number of events is
+
+```{r echo=TRUE}
+full_dataset$event <- full_dataset$sample_size * full_dataset$OA_reported
+
+```
+
+From the `metafor` package [@metafor], the `escalc` function, transforms the overall accuracy ---here using the Freeman-Tukey double arcsine transformation--- and calculates the appropriate variance for each observation.
+
+```{r echo=TRUE}
+ies.da <- escalc(xi = event , ni = sample_size , 
+                data = full_dataset,
+                measure = "PFT",  # FT double  arcsine  transformation
+                slab = paste(AuthorYear, " Estimate ", esid)) 
+
+```
+
+### Meta-analysis Results
+
+The table presents the results of a meta-analysis conducted on two datasets (the dataset used in my thesis: "Nina, 2024" and @khatami2016), as well as the combined data, with and without the inclusion of study features. The results show significant heterogeneity across all datasets, indicated by the very low $p_Q$ values (\< 0.0001), meaning that the overall accuracy varies significantly from outcome to outcome. Variance at both Level 2 and Level 3 ($\sigma^2_{\text{level2}}$ and $\sigma^2_{\text{level3}}$) is present in both datasets. Including study features (model group and publication year) does not reduce this variance in my dataset. However, in the @khatami2016 data, 55.5% of the variance at Level 2 is explained by the inclusion of these factors, though Level 3 variance remains poorly explained, with a negative $R^2_{\text{level3}}$ value (-5.6%).
+
+```{r extractparameter}
+extract_parameters <- function(data) {
+  
+  model_without_features = rma.mv(yi, vi,
+    data = data,
+    tdist = TRUE,
+    random = ~ 1 | AuthorYear / esid,
+    method = "REML",
+    test = "t",
+    dfs = "contain"
+  )
+  
+  model_with_features = rma.mv(yi, vi,
+    data = data,
+    tdist = TRUE,
+    random = ~ 1 | AuthorYear / esid,
+    method = "REML",
+    test = "t",
+    dfs = "contain",
+    mods = ~ model_group + Publication.Year
+  )
+  
+  
+  extract_parameters <- data.frame(
+    dataset = NA,
+    sig_lvl2 = round(model_without_features$sigma2[2], 3), 
+    sig_lvl3 = round(model_without_features$sigma2[1], 3), 
+    sig_lvl2_with = round(model_with_features$sigma2[2], 3), 
+    sig_lvl3_with = round(model_with_features$sigma2[1], 3), 
+    QE = round(model_with_features$QE,0), 
+    df_Q = model_with_features$QEdf,
+    p_Q = round(model_with_features$QEp,3), 
+    f_test = if (!is.null(model_with_features$formula.mods))
+      round(model_with_features$QM, 0)
+    else
+      NA,
+    df_F = if (!is.null(model_with_features$formula.mods))
+      model_with_features$QMdf[1]
+    else
+      NA,
+    p_F = if (!is.null(model_with_features$formula.mods))
+      round(model_with_features$QMp, 3)
+    else
+      NA,
+    I2_lvl2 = dmetar::var.comp(model_with_features)$results[2, 2],
+    I2_lvl3 = dmetar::var.comp(model_with_features)$results[3, 2], 
+    
+    R2_lvl2 = (round(1 - (model_with_features$sigma2[2] / 
+                    model_without_features$sigma2[2]), 3) * 100),
+   
+    R2_lvl3 = round(1 - (model_with_features$sigma2[1] / 
+                    model_without_features$sigma2[1]), 3) * 100
+    )
+  return(list(parameters_table = extract_parameters, model_results = model_with_features))
+}
+
+```
+
+```{r meta_analysis_results, cache=TRUE}
+nina_results <- extract_parameters(data = subset(ies.da, dataset == "nina_2024")) 
+results_tbl <- nina_results$parameters_table
+results_tbl[1,1] <- c("Nina, 2024")
+
+Khatami_results <- extract_parameters(data = subset(ies.da, dataset == "Khatami_2016")) 
+results_tbl[2,] <- Khatami_results$parameters_table
+results_tbl[2,1] <- c("Khatami, 2016")
+
+combied_results <- extract_parameters(data = ies.da) 
+results_tbl[3,] <- combied_results$parameters_table
+results_tbl[3,1] <- c("Combined")
+
+
+results_tbl$p_Q <- ifelse(results_tbl$p_Q <0.0001,
+                                 "<.0001",
+                                 results_tbl$p_Q)
+results_tbl$p_F <- ifelse(results_tbl$p_F<0.0001,
+                                 "<.0001",
+                                 results_tbl$p_F)
+
+```
+
+```{r}
+results_tbl[, -c(2,3)]|>
+kable(
+      escape = FALSE,
+      col.names = c("Dataset",
+                     
+    "$\\sigma^2_{\\text{level2}}$", "$\\sigma^2_{\\text{level3}}$", 
+    "$Q_E$", "df", "$p_Q$", "$F$", "df", "$p_F$", 
+    "$I^2_{\\text{level2}}$", "$I^2_{\\text{level3}}$", 
+    "$R^2_{\\text{level2}}$", "$R^2_{\\text{level3}}$"), 
+  align = c("l","r","r","r","r",  "r","r","r","r","r","r","r","r")
+  )|>
+  kable_classic_2(full_width = T)
+```
+
+```{r}
+backtras.function<- function(t_bar, se){
+  v_bar <- (se)^2
+  (1/2 * (1 - sign(cos(2*t_bar)) *
+           sqrt(1 - (sin(2*t_bar)+(sin(2*t_bar)-1/sin(2*t_bar))/(1/v_bar))^2)))
+}
+
+
+```
+
+@khatami2016 conducted a meta-analysis using articles that compared two or more classification algorithms applied to the same dataset, performing pairwise comparisons of their accuracy. They found that Support Vector Machines (SVM) consistently outperformed other classifiers. For instance, SVM performed better than Maximum Likelihood (ML) in 28 out of 30 studies, with a median improvement of 5%, and outperformed K-Nearest Neighbor (KNN) in 11 out of 13 studies. Random Forest (RF) also showed significant improvements over Decision Trees (DT), with a mean increase in accuracy of 4%. Additionally, KNN outperformed ML and DT in several comparisons, making it a viable alternative for certain classification tasks.
+
+```{r coef}
+Khatami_coef <- 
+  Khatami_results$model_results|>
+  tidy()|>
+  mutate(estimate_back_transfromed = mapply(backtras.function, 
+                                            Khatami_results$model_results$b, 
+                                            Khatami_results$model_results$se), 
+         LL = mapply(backtras.function, 
+                     Khatami_results$model_results$ci.lb,
+                     Khatami_results$model_results$se), 
+         UL = mapply(backtras.function, 
+                     Khatami_results$model_results$ci.ub,
+                     Khatami_results$model_results$se))
+ 
+         
+Khatami_coef<-Khatami_coef[-1,]
+
+Khatami_coef$feature <- gsub("model_group", "", Khatami_coef$term)
+
+coef_table <- 
+  Khatami_coef|>
+    mutate(
+      p.value = round(p.value, 3), 
+      stripe_condition = ifelse(p.value < 0.05, TRUE, FALSE))|>
+    mutate(p.value = ifelse(p.value < 0.0001,
+                                 "<.0001",
+                                 p.value))
+coef_table|>
+  select(feature, estimate, std.error, p.value, estimate_back_transfromed, LL, UL)|>
+  kable(escape = FALSE,
+        col.names = c("Feature", "Estimate", "SE", "$p$", "Estimate$_{B-T}$", "LL", "UL"), 
+        align = c("l", "r","r","r","r","r","r"), 
+        digits =c(0, 2, 2, 3, 2, 2, 2))|>
+  kable_classic_2(full_width = T)|>
+  row_spec(which(coef_table$stripe_condition == TRUE), background = "#e0f5dd") |>
+  add_header_above(c(" " = 5, "CI" = 2))|>
+  add_header_above(c(" ", "Trasformed scale" = 3, "Back-transformed scale" = 3))
+  
+```
+
+The comparison between the table results and @khatami2016 reveals consistent findings regarding the performance of several classification algorithms. Both analyses confirm that Support Vector Machines (SVM) consistently outperform other classifiers, with the table showing a significant positive effect (0.06, p=0.0001). Neural Networks (NN) also show positive performance in both studies, though slightly less effective than SVM. Random Forest (RF) performs well in Khatami et al. (with significant improvements over Decision Trees (DT)), but the table presents a non-significant effect for RF. KNN is another strong performer in @khatami2016, but its effect is not significant in the table (p=0.61). Meanwhile, Minimum Distance and Parallelepiped classifiers show poor performance in both analyses, with significant negative estimates in the table, aligning with Khatami et al.'s findings that these methods underperform. Thus, the table largely supports @khatami2016's conclusions, particularly regarding SVM's dominance and the underperformance of simpler classifiers like ML and DT.
+:::

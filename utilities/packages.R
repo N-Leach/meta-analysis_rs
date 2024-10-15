@@ -1,0 +1,10 @@
+# Load used packages
+library(tidyverse)
+library(readxl)
+library(broom)
+library(metafor)
+library(kableExtra)
+library(gtsummary)
+library(dmetar)
+library(patchwork)
+theme_set(theme_bw()) 

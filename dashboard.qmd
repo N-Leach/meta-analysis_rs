@@ -1,0 +1,225 @@
+---
+title: "Active Analysis Dashboard"
+format: 
+  dashboard:
+    orientation: columns
+    scrolling: true 
+    html-table-processing: none
+    include-in-header: in-line_math_mode.html
+---
+
+```{r setup}
+source("utilities/functions_labels.R")
+source("utilities/packages.R")
+data <- read.csv("data/Contrib_metaData.csv")
+
+data <- data |> group_by(AuthorYear) |> 
+  mutate(esid = row_number(), 
+         event = sample_size *OA_reported)
+
+## Group the number of bands (low, mid, not reported)
+data$no_band_group <- with(data,
+                           ifelse(
+                             is.na(RS_spectral_bands_no),
+                             "Not Reported",
+                             ifelse(
+                               RS_spectral_bands_no >= 1 & RS_spectral_bands_no<5,
+                               "Low",
+                               ifelse(RS_spectral_bands_no >= 5 & RS_spectral_bands_no<=20,
+                                      "Mid",
+                                ifelse(RS_spectral_bands_no < 20,
+                                      "High", NA)
+                             )
+                           )))
+data<-group_small_category(data = data)
+
+# For notice about if new data is added
+new_entries <- data[(data$dataset %in% c("nina_2024")), ]
+if (nrow(new_entries) <= 0) {
+    notice <- c("No new entries")
+  }else {
+    notice <- c("New data avaliable, see summary table")
+  }
+```
+
+::: {.card .flow title="Active dataset" width="40%"}
+### Intro {height="10%"}
+
+The analysis on this dashboard updates daily (at 12:00 CET). Users can make contribute to the data for this analysis and see how it affects the results. For information on how to add to the dataset see [Contribute data page](codebook.qmd). The table bellow shows the data collected columns are added by contributor.
+
+```{r sum_table, height="90%"}
+#| padding: 0px
+#| label: tbl-sum
+#| tbl-cap: Summary table
+options(knitr.kable.NA = '')
+tbl <-data |>
+      ungroup() |>
+      select(
+        dataset,
+        OA_reported,
+        sample_size,
+        fraction_majority_class,
+        ancillary,
+        indices,
+        no_band_group,
+        Confusion_matrix,
+        model_group
+      ) |>
+      tbl_summary(
+        by = dataset,
+        statistic = list(
+          all_continuous() ~ "{mean} ({min} - {max})",
+          all_categorical() ~ "{n} ({p}%)"
+        ),
+        label = feature_labels,
+      ) |>
+      modify_header(label = "Feature", 
+                    all_stat_cols() ~ "{level}, N = {n}")
+    n_total_rows <- nrow(tbl$table_body)
+    
+    kable(tbl,
+           align = c("l","r","r","r","r")) |>
+      kable_classic_2(full_width = T)|>
+      kable_styling(bootstrap_options = c("hover", "condensed")#, font_size = 12
+                    )|>
+      
+      add_indent(positions = c(5, 6, 8, 9, 11, 12:13, 15,16, 18:n_total_rows)) |>
+      footnote(
+        general = c("Mean (Min - Max); n(%)"),
+        threeparttable = TRUE,
+        escape = FALSE
+      )
+```
+:::
+
+::: {.card title="Meta-analysis" width="60%"}
+## Methods
+
+### About the fit model
+
+The fit model for this analysis is a multilevel meta-regression using the `rma.mv` function from the `metafor` package. This model allows for a random-effects meta-regression, where the goal is to account for variability both within and between studies. The model here is:
+
+::: {style="background-color: #F2FBF6; padding: 0px; border-radius: 5px; font-size: 0.85em;"}
+<p style="text-align: center;">
+
+$$\text{overall accuracy}_{_{transformed}} = \text{proportion majority class + ancillary + indices + confusion matrix + model group}$$
+
+</p>
+:::
+
+::: {.callout-tip icon="false" collapse="true"}
+#### model specification:
+
+```{r model_fit, echo=TRUE}
+# Calculate effect sizes and variance using escalc function from metafor package
+ies.da  <- escalc(xi = event , ni = sample_size , data = data ,
+               measure = "PFT",  # FT double  arcsine  transformation
+               slab=paste(AuthorYear, " Estimate ", esid)
+               ) 
+
+# Fit a multilevel random-effects meta-regression model
+meta_reg <- rma.mv(yi, vi,
+  data = ies.da,
+  random = ~ 1 | AuthorYear / esid,
+  tdist = TRUE,
+  method = "REML",
+  test = "t",
+  dfs = "contain",
+  mods = ~ fraction_majority_class + ancillary + 
+            indices +  no_band_group + Confusion_matrix +
+            model_group 
+)
+```
+
+I choose the most important models see [lay-summary](index.qmd) for more information. I also included model group because Khatami, Mountrakis, and Stehman (2016) found significant differences when comparing models groups.
+:::
+
+## Results
+
+### Heterogeneity
+
+The table bellow shows the heterogeneity in the overall accuracy from the dataset, both with and without study features. Heterogeneity is a measure of the variability in effect sizes across studies, and it helps to understand the extent to which the included studies are similar or different from one another.
+
+```{r het_res}
+#| padding: 0px
+#| label: tbl-het_res
+#| tbl-cap: Heterogeneity results
+results <- extract_parameters(model_with_features = meta_reg, data = ies.da)
+
+results$parameters_table[,-1]|>
+  kable(
+      escape = FALSE,
+      col.names = c(
+     "$\\sigma^2_{\\text{level2}}$", "$\\sigma^2_{\\text{level3}}$",                 
+    "$\\sigma^2_{\\text{level2}}$", "$\\sigma^2_{\\text{level3}}$", 
+    "$Q_E$", "df", "$p_Q$", "$F$", "df", "$p_F$", 
+    "$I^2_{\\text{level2}}$", "$I^2_{\\text{level3}}$", 
+    "$R^2_{\\text{level2}}$", "$R^2_{\\text{level3}}$"), 
+  align = c("l","r","r","r","r",  "r","r","r","r","r","r","r","r")
+  )|>
+  kable_classic_2(full_width = FALSE)|>
+  add_header_above(c("Without-" = 2, "With- study features" = 12))
+```
+
+Without Study Features: This column shows the heterogeneity estimates when no study features are considered. With Study Features: This column indicates the heterogeneity estimates when study features (model defined above) are included in the analysis. The metrics included are:
+
+-   $\sigma^2$ The variance estimates at different levels (level 2: within- and level 3: between- study).
+
+-   Q and p-values: Test statistics for heterogeneity, where a significant p-value ($p_Q$) suggests significant heterogeneity.
+
+-   $I^2$: The percentage of variability due to heterogeneity rather than chance.
+
+-   $R^2$: The proportion of variance explained by the model.
+
+### Which study features explain the heterogeneity
+
+The coefficient table shows the impact of each study feature on the overall accuracy. Positive or negative values indicate the direction and magnitude of the effect for each feature. It is important to note that the results shown are in a transformed scale and may not have the same interpretation when back-transformed
+
+-   **Feature Name**: Each row represents a study feature.
+
+-   **Estimate**: The coefficient (or beta) for each feature, representing the strength and direction of its influence.
+
+-   **Standard Error**: The standard deviation of the coefficient, which helps understand the uncertainty around the estimate.
+
+-   **p-value**: This indicates whether the feature is statistically significant. If the p-value is less than 0.05, the feature likely has a meaningful impact on the heterogeneity.
+
+::: {.callout-tip icon="false" collapse="true"}
+#### coefficients table:
+
+```{r tbl_coef}
+#| label: tbl-coef
+#| tbl-cap: Coefficients table
+#| padding: 0px
+tbl_coef <- 
+  results$model_results|>
+  tidy()|>
+  mutate(p = ifelse(p.value <0.001, "<0.001", round(p.value, 3)))|>
+  select(term, estimate, std.error, p)
+
+
+kable(tbl_coef,
+      booktabs = TRUE,
+      escape = FALSE, 
+      align = c("l","r","r","r")) |>
+  kable_classic_2(full_width = T) |>
+  footnote(
+    general = c("When the analysis is done with only the nina_2024 data, indcluding model group means that the study feature: ancillary is not signficant, this is different from the conclusions made in thesis manuscript as the model fit here is not the 'best' model."),
+    threeparttable = TRUE
+  )
+```
+:::
+
+### Bubble Plot
+
+To visualize the relationship between the proportion of majority class and overall accuracy. Each bubble represents a result from a study, with the size of the bubble indicating the study's weight or sample size.
+
+```{r bubble}
+#| padding: 0px
+regplot(meta_reg, 
+        mod = "fraction_majority_class", 
+        transf = transf.ipft.hm, targ =list(ni=1/(meta_reg$se)^2), 
+        xlab = "Proportion of majority class", 
+        ylab = "Overall Accuracy", 
+        bg="#3d7362")
+```
+:::
