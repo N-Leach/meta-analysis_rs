@@ -11,7 +11,7 @@ format:
 ```{r setup}
 source("utilities/functions_labels.R")
 source("utilities/packages.R")
-data <- read.csv("data/Contrib_metaData.csv")
+data <- read.csv("https://raw.githubusercontent.com/N-Leach/meta-analysis_rs/refs/heads/main/data/Contrib_metaData.csv")
 
 data <- data |> group_by(AuthorYear) |> 
   mutate(esid = row_number(), 
