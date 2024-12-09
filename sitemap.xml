@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://N-Leach.github.io/meta-analysis_rs/index.html</loc>
-    <lastmod>2024-12-08T12:21:08.648Z</lastmod>
+    <loc>https://N-Leach.github.io/meta-analysis_rs/khatami_analysis.html</loc>
+    <lastmod>2024-12-09T12:24:37.740Z</lastmod>
   </url>
   <url>
     <loc>https://N-Leach.github.io/meta-analysis_rs/dashboard.html</loc>
-    <lastmod>2024-12-08T12:21:08.640Z</lastmod>
+    <lastmod>2024-12-09T12:24:37.733Z</lastmod>
+  </url>
+  <url>
+    <loc>https://N-Leach.github.io/meta-analysis_rs/index.html</loc>
+    <lastmod>2024-12-09T12:24:37.740Z</lastmod>
   </url>
   <url>
     <loc>https://N-Leach.github.io/meta-analysis_rs/codebook.html</loc>
-    <lastmod>2024-12-08T12:21:08.640Z</lastmod>
-  </url>
-  <url>
-    <loc>https://N-Leach.github.io/meta-analysis_rs/khatami_analysis.html</loc>
-    <lastmod>2024-12-08T12:21:08.648Z</lastmod>
+    <lastmod>2024-12-09T12:24:37.733Z</lastmod>
   </url>
 </urlset>
